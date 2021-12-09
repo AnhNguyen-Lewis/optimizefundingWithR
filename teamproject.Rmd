@@ -1,0 +1,104 @@
+---
+  title: "Team 3 ETM 540 Project"
+  author: "Moise Degand - Nick DeMolina - Anh Nguyen"
+  date: "December 9, 2021"
+  output:
+    pdf_document: default
+    html_document: default
+---
+  
+```{r warning=FALSE}
+library (gridExtra)
+library (tinytex)
+library (magrittr, quietly = TRUE) 
+suppressPackageStartupMessages(
+  library (dplyr, quietly = TRUE))
+suppressPackageStartupMessages(
+  library (ROI, quietly = TRUE))
+library (ROI.plugin.glpk, quietly = TRUE)
+library (ompr, quietly = TRUE)
+library (ompr.roi, quietly = TRUE)
+library (pander, quietly = TRUE)
+library (gridExtra)
+
+```
+## Model
+Generalized Model
+$$
+ \begin{split}
+ \begin{aligned}
+    \text{Max  }   & x_{k} \\
+    \text{subject to } 
+                      & \sum_{j=1}^{nPro} C_{j} x_{j} \leq Total funding \\
+                      & x_{j} \geq x'_{j} \\
+  \end{aligned}
+  \end{split}
+$$
+
+
+
+Case Study Model (Portland City)
+$$
+ \begin{split}
+ \begin{aligned}
+    \text{Max  }   & SupportiveHousing \\
+    \text{subject to } 
+                      & 8000 * SupportiveHousing + 2460 * HousingPlacement + 3318 * SafetyStreet \leq 109000000 \\
+                      & SupportiveHousing \geq 4828 \\
+                      & HousingPlacement \geq 14355 \\
+                      & SafetyStreet \geq 5136 \\
+  \end{aligned}
+  \end{split}
+$$
+
+```{r Model, echo=TRUE}
+fundingModel <- MIPModel() %>%
+  
+  add_variable(SH, type = "integer", lb = 4828) %>%
+
+  add_variable(HP, type = "integer",lb = 14355) %>%
+  
+  add_variable(SS, type = "integer",lb = 5136) %>%
+  
+  set_objective(SH, "max") %>%
+
+  add_constraint(8000 * SH + 2460 * HP + 3318 * SS <= 109000000)
+  
+
+  
+
+res_funding <- solve_model(fundingModel, 
+                        with_ROI(solver = "glpk"))
+
+res_funding
+```
+```{r Result, echo=TRUE}
+program <- list("Housing Placement & Retention", "Supportive Housing", "Safety off and on the Streets")
+final <- matrix(res_funding$solution,
+                nrow = 3,
+                dimnames = list(program,"Number of programs") ) 
+grid.table (final)
+
+```
+
+```{r ResultFinal, echo=TRUE,include=FALSE}
+program <- list("Housing Placement & Retention", "Supportive Housing", "Safety off and on the Streets")
+fundingHP <- 2460*res_funding$solution[0]
+fundingSP <- 8000*res_funding$solution[1]
+fundingSS <- 3318*res_funding$solution[2]
+finalFunding <- rbind(fundingHP,fundingSP,fundingSS)
+finalFunding2 <- matrix(c(35318220,56640000,17041248),nrow = 3)
+finalResult <- cbind(final,finalFunding2)
+colnames(finalResult)<- list("Number of programs","Total Funding")
+
+```
+
+```{r ResultFinal2, echo=TRUE}
+grid.table (finalResult)
+
+```
+
+
+
+
+
